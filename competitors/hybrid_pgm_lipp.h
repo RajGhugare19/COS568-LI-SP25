@@ -81,7 +81,7 @@ public:
         // First try PGM
         auto it = pgm_index_.find(key);
         if (it != pgm_index_.end()) {
-            return it->second;
+            return it->value();
         }
         
         // If not found in PGM, try LIPP
@@ -127,7 +127,7 @@ private:
         
         // Use the PGM iterator to get all keys
         for (auto it = pgm_index_.begin(); it != pgm_index_.end(); ++it) {
-            keys_to_flush.push_back({it->first, it->second});
+            keys_to_flush.push_back({it->key(), it->value()});
         }
         
         // Insert into LIPP
