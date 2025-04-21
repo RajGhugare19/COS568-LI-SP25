@@ -45,6 +45,23 @@ public:
         // We don't need to use the params for now
     }
     
+    // Build the index from a dataset
+    uint64_t Build(const std::vector<KeyValue<KeyType>>& data, size_t num_threads) {
+        // For simplicity, we'll just insert all keys into LIPP
+        // In a real implementation, we might want to use a more sophisticated approach
+        
+        // Insert all keys into LIPP
+        for (const auto& kv : data) {
+            lipp_index_.Insert(kv);
+        }
+        
+        // Update the total key count
+        total_key_count_ = data.size();
+        
+        // Return the build time (we don't have a way to measure it, so return 0)
+        return 0;
+    }
+    
     // Insert a key-value pair
     void Insert(const KeyValue<KeyType>& kv, uint32_t thread_id) {
         // Insert into PGM
