@@ -17,6 +17,13 @@ struct LinearSearch {
         // Use the project's LinearSearch class
         return ::LinearSearch<0>::upper_bound(first, last, key, hint, get_key);
     }
+    
+    // Add the lower_bound method required by PGM-index
+    template<typename Iterator>
+    static Iterator lower_bound(Iterator first, Iterator last, const K& key, Iterator hint) {
+        // Use standard lower_bound for simplicity
+        return std::lower_bound(first, last, key);
+    }
 };
 
 template <typename KeyType>
