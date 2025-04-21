@@ -66,7 +66,7 @@ public:
     // Insert a key-value pair
     void Insert(const KeyValue<KeyType>& kv, uint32_t thread_id) {
         // Insert into PGM
-        pgm_index_.Insert(kv, thread_id);
+        pgm_index_.insert(kv.key, kv.value);
         pgm_key_count_++;
         total_key_count_++;
         
@@ -79,9 +79,9 @@ public:
     // Lookup a key
     size_t EqualityLookup(const KeyType& key, uint32_t thread_id) {
         // First try PGM
-        size_t result = pgm_index_.EqualityLookup(key, thread_id);
-        if (result != util::NOT_FOUND) {
-            return result;
+        auto it = pgm_index_.find(key);
+        if (it != pgm_index_.end()) {
+            return it->second;
         }
         
         // If not found in PGM, try LIPP
@@ -103,6 +103,12 @@ public:
     
     // Get the name of this index
     std::string name() const { return "HybridPGMLIPP"; }
+    
+    // Override the runMultithread method from Base<KeyType>
+    uint64_t runMultithread(void *(* func)(void *), FGParam *params) {
+        // Call the base class implementation
+        return Base<KeyType>::runMultithread(func, params);
+    }
 
 private:
     // Flush data from PGM to LIPP
