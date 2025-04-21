@@ -25,7 +25,7 @@ private:
     DynamicPGMIndex<KeyType, uint64_t, LinearSearch<KeyType>> pgm_index_;
     
     // The LIPP index for handling lookups
-    LIPP<KeyType, uint64_t, true> lipp_index_;
+    Lipp<KeyType> lipp_index_;
     
     // Threshold for when to flush from PGM to LIPP (5% of total keys)
     const double FLUSH_THRESHOLD = 0.05;
