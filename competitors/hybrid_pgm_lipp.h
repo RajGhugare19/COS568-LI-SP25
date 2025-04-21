@@ -37,7 +37,13 @@ private:
     size_t total_key_count_ = 0;
 
 public:
+    // Default constructor
     HybridPGMLIPP() = default;
+    
+    // Constructor that takes parameters (required by the benchmark framework)
+    HybridPGMLIPP(const std::vector<int>& params) {
+        // We don't need to use the params for now
+    }
     
     // Insert a key-value pair
     void Insert(const KeyValue<KeyType>& kv, uint32_t thread_id) {
