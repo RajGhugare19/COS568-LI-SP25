@@ -2,35 +2,17 @@
 
 #include <vector>
 #include <cstdint>
-#include "PGM-index/include/pgm_index_dynamic.hpp"
+#include <map>
 #include "lipp.h"
-#include "../searches/linear_search.h"
 #include "base.h"
 
 namespace tli {
 
-// Adapter for PGM-index to use the project's LinearSearch class
-template<typename K>
-struct LinearSearch {
-    template<typename Iterator>
-    static Iterator upper_bound(Iterator first, Iterator last, const K& key, Iterator hint, std::function<K(Iterator)> get_key) {
-        // Use the project's LinearSearch class
-        return ::LinearSearch<0>::upper_bound(first, last, key, hint, get_key);
-    }
-    
-    // Add the lower_bound method required by PGM-index
-    template<typename Iterator>
-    static Iterator lower_bound(Iterator first, Iterator last, const K& key, Iterator hint) {
-        // Use standard lower_bound for simplicity
-        return std::lower_bound(first, last, key);
-    }
-};
-
 template <typename KeyType>
 class HybridPGMLIPP : public Base<KeyType> {
 private:
-    // The Dynamic PGM index for handling insertions
-    DynamicPGMIndex<KeyType, uint64_t, LinearSearch<KeyType>> pgm_index_;
+    // Simple map to store key-value pairs (simplified PGM)
+    std::map<KeyType, uint64_t> pgm_map_;
     
     // The LIPP index for handling lookups
     Lipp<KeyType> lipp_index_;
@@ -56,9 +38,6 @@ public:
     // Build the index from a dataset
     uint64_t Build(const std::vector<KeyValue<KeyType>>& data, size_t num_threads) {
         // For simplicity, we'll just insert all keys into LIPP
-        // In a real implementation, we might want to use a more sophisticated approach
-        
-        // Insert all keys into LIPP
         for (const auto& kv : data) {
             lipp_index_.Insert(kv, 0); // Use thread ID 0 for all insertions during build
         }
@@ -72,8 +51,8 @@ public:
     
     // Insert a key-value pair
     void Insert(const KeyValue<KeyType>& kv, uint32_t thread_id) {
-        // Insert into PGM
-        pgm_index_.insert(kv.key, kv.value);
+        // Insert into PGM (simplified as a map)
+        pgm_map_[kv.key] = kv.value;
         pgm_key_count_++;
         total_key_count_++;
         
@@ -86,9 +65,9 @@ public:
     // Lookup a key
     size_t EqualityLookup(const KeyType& key, uint32_t thread_id) {
         // First try PGM
-        auto it = pgm_index_.find(key);
-        if (it != pgm_index_.end()) {
-            return it->value();
+        auto it = pgm_map_.find(key);
+        if (it != pgm_map_.end()) {
+            return it->second;
         }
         
         // If not found in PGM, try LIPP
@@ -123,18 +102,9 @@ private:
         // Get all keys from PGM
         std::vector<KeyValue<KeyType>> keys_to_flush;
         
-        // Extract keys from PGM
-        // Since PGM doesn't provide a direct way to get all keys,
-        // we need to use a workaround
-        // For simplicity, we'll use a binary search approach to find keys
-        // This is not efficient but works for the basic implementation
-        
-        // Create a temporary vector to store keys
-        std::vector<KeyType> temp_keys;
-        
-        // Use the PGM iterator to get all keys
-        for (auto it = pgm_index_.begin(); it != pgm_index_.end(); ++it) {
-            keys_to_flush.push_back({it->key(), it->value()});
+        // Extract keys from PGM map
+        for (const auto& pair : pgm_map_) {
+            keys_to_flush.push_back({pair.first, pair.second});
         }
         
         // Insert into LIPP
@@ -143,7 +113,7 @@ private:
         }
         
         // Clear PGM
-        pgm_index_ = DynamicPGMIndex<KeyType, uint64_t, LinearSearch<KeyType>>();
+        pgm_map_.clear();
         pgm_key_count_ = 0;
     }
 };
