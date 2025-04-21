@@ -34,7 +34,7 @@ set(BENCH_SOURCES
     "benchmarks/benchmark_pgm.cc"
     "benchmarks/benchmark_lipp.cc"
     "benchmarks/benchmark_btree.cc"
-    "benchmarks/benchmark_hybrid_pgm_lipp.cc")
+    "benchmarks/benchmark_hybrid_pgm_lipp.cc")  # Add this line
 
 file(GLOB_RECURSE SEARCH_SOURCES "searches/*.h" "searches/search.cpp")
 

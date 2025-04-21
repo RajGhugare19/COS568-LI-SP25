@@ -2,120 +2,115 @@
 
 #include <vector>
 #include <cstdint>
-#include <map>
 #include "lipp.h"
+#include "dynamic_pgm_index.h"
 #include "base.h"
 
-namespace tli {
-
-template <typename KeyType>
-class HybridPGMLIPP : public Base<KeyType> {
-private:
-    // Simple map to store key-value pairs (simplified PGM)
-    std::map<KeyType, uint64_t> pgm_map_;
-    
-    // The LIPP index for handling lookups
-    Lipp<KeyType> lipp_index_;
-    
-    // Threshold for when to flush from PGM to LIPP (5% of total keys)
-    const double FLUSH_THRESHOLD = 0.05;
-    
-    // Current number of keys in PGM
-    size_t pgm_key_count_ = 0;
-    
-    // Total number of keys
-    size_t total_key_count_ = 0;
-
+template <class KeyType, class SearchClass, size_t pgm_error>
+class HybridPGMLIPP : public Competitor<KeyType, SearchClass> {
 public:
-    // Default constructor
-    HybridPGMLIPP() : lipp_index_(std::vector<int>{}) {}
-    
-    // Constructor that takes parameters (required by the benchmark framework)
-    HybridPGMLIPP(const std::vector<int>& params) : lipp_index_(params) {
-        // We don't need to use the params for now
-    }
-    
-    // Build the index from a dataset
+    HybridPGMLIPP(const std::vector<int>& params) : flush_threshold_(0.05) {}
+
     uint64_t Build(const std::vector<KeyValue<KeyType>>& data, size_t num_threads) {
-        // For simplicity, we'll just insert all keys into LIPP
-        for (const auto& kv : data) {
-            lipp_index_.Insert(kv, 0); // Use thread ID 0 for all insertions during build
+        // Initially bulk load into LIPP
+        std::vector<std::pair<KeyType, uint64_t>> loading_data;
+        loading_data.reserve(data.size());
+        for (const auto& itm : data) {
+            loading_data.emplace_back(itm.key, itm.value);
+        }
+
+        total_keys_ = data.size();
+        return util::timing([&] { lipp_.bulk_load(loading_data.data(), loading_data.size()); });
+    }
+
+    size_t EqualityLookup(const KeyType& lookup_key, uint32_t thread_id) const {
+        // First try DPGM
+        auto it = pgm_.find(lookup_key);
+        if (it != pgm_.end()) {
+            return it->value();
+        }
+
+        // If not found in DPGM, try LIPP
+        uint64_t value;
+        if (!lipp_.find(lookup_key, value)) {
+            return util::NOT_FOUND;
+        }
+        return value;
+    }
+
+    void Insert(const KeyValue<KeyType>& data, uint32_t thread_id) {
+        // Insert into DPGM
+        pgm_.insert(data.key, data.value);
+        total_keys_++;
+        
+        // Check if we need to flush
+        if (pgm_.size() >= flush_threshold_ * total_keys_) {
+            FlushDPGMToLIPP();
+        }
+    }
+
+    uint64_t RangeQuery(const KeyType& lower_key, const KeyType& upper_key, uint32_t thread_id) const {
+        // Combine results from both indexes
+        uint64_t result = 0;
+        
+        // Query DPGM
+        auto pgm_it = pgm_.lower_bound(lower_key);
+        while(pgm_it != pgm_.end() && pgm_it->key() <= upper_key) {
+            result += pgm_it->value();
+            ++pgm_it;
         }
         
-        // Update the total key count
-        total_key_count_ = data.size();
-        
-        // Return the build time (we don't have a way to measure it, so return 0)
-        return 0;
-    }
-    
-    // Insert a key-value pair
-    void Insert(const KeyValue<KeyType>& kv, uint32_t thread_id) {
-        // Insert into PGM (simplified as a map)
-        pgm_map_[kv.key] = kv.value;
-        pgm_key_count_++;
-        total_key_count_++;
-        
-        // Check if we need to flush to LIPP
-        if (pgm_key_count_ >= total_key_count_ * FLUSH_THRESHOLD) {
-            FlushToLIPP();
-        }
-    }
-    
-    // Lookup a key
-    size_t EqualityLookup(const KeyType& key, uint32_t thread_id) {
-        // First try PGM
-        auto it = pgm_map_.find(key);
-        if (it != pgm_map_.end()) {
-            return it->second;
+        // Query LIPP
+        auto lipp_it = lipp_.lower_bound(lower_key);
+        while(lipp_it != lipp_.end() && lipp_it->comp.data.key <= upper_key) {
+            result += lipp_it->comp.data.value;
+            ++lipp_it;
         }
         
-        // If not found in PGM, try LIPP
-        return lipp_index_.EqualityLookup(key, thread_id);
+        return result;
     }
-    
-    // Range query (if needed)
-    uint64_t RangeQuery(const KeyType& lo_key, const KeyType& hi_key, uint32_t thread_id) {
-        // Implement range query if needed
-        return 0;
-    }
-    
-    // Check if this index is applicable for the given parameters
-    bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) {
-        // HybridPGMLIPP supports unique keys, range queries, and inserts
-        // It also supports multithreading
-        return true;
-    }
-    
-    // Get the name of this index
+
     std::string name() const { return "HybridPGMLIPP"; }
-    
-    // Override the runMultithread method from Base<KeyType>
-    uint64_t runMultithread(void *(* func)(void *), FGParam *params) {
-        // Call the base class implementation
-        return Base<KeyType>::runMultithread(func, params);
+
+    std::size_t size() const { 
+        return pgm_.size_in_bytes() + lipp_.index_size(); 
+    }
+
+    bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) const {
+        std::string name = SearchClass::name();
+        // Both DPGM and LIPP require unique keys and single thread
+        return unique && !multithread && name != "LinearAVX";
+    }
+
+    std::vector<std::string> variants() const { 
+        std::vector<std::string> vec;
+        vec.push_back(SearchClass::name());
+        vec.push_back(std::to_string(pgm_error));
+        return vec;
     }
 
 private:
-    // Flush data from PGM to LIPP
-    void FlushToLIPP() {
-        // Get all keys from PGM
-        std::vector<KeyValue<KeyType>> keys_to_flush;
-        
-        // Extract keys from PGM map
-        for (const auto& pair : pgm_map_) {
-            keys_to_flush.push_back({pair.first, pair.second});
+    void FlushDPGMToLIPP() {
+        // Extract all key-value pairs from DPGM
+        std::vector<std::pair<KeyType, uint64_t>> flush_data;
+        for (auto it = pgm_.begin(); it != pgm_.end(); ++it) {
+            flush_data.emplace_back(it->key(), it->value());
         }
         
-        // Insert into LIPP
-        for (const auto& kv : keys_to_flush) {
-            lipp_index_.Insert(kv, 0); // Use thread ID 0 for all insertions during flush
+        // Sort the data (LIPP requires sorted input)
+        std::sort(flush_data.begin(), flush_data.end());
+        
+        // Insert into LIPP one by one (naive approach for milestone 2)
+        for (const auto& kv : flush_data) {
+            lipp_.insert(kv.first, kv.second);
         }
         
-        // Clear PGM
-        pgm_map_.clear();
-        pgm_key_count_ = 0;
+        // Clear DPGM
+        pgm_ = decltype(pgm_)();
     }
-};
 
-} // namespace tli 
+    DynamicPGMIndex<KeyType, uint64_t, SearchClass, PGMIndex<KeyType, SearchClass, pgm_error, 16>> pgm_;
+    LIPP<KeyType, uint64_t> lipp_;
+    const double flush_threshold_;  // Flush when DPGM size reaches this fraction of total keys
+    size_t total_keys_;  // Total number of keys in the dataset
+};

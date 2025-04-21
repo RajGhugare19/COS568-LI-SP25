@@ -1,13 +1,23 @@
-#include "benchmarks/benchmark_hybrid_pgm_lipp.h"
+#include <iostream>
 
-#include "benchmark.h"
-#include "common.h"
-#include "competitors/hybrid_pgm_lipp.h"
+#include "benchmark_hybrid_pgm_lipp.h"
 
-namespace tli {
+int main(int argc, char* argv[]) {
+  if (argc != 4) {
+    std::cout << "Usage: " << argv[0]
+              << " <data_file> <operations_file> <bulkload_file>" << std::endl;
+    return 1;
+  }
+  std::string data_file = argv[1];
+  std::string ops_file = argv[2];
+  std::string bulk_file = argv[3];
 
-void benchmark_64_hybrid_pgm_lipp(Benchmark<uint64_t>& benchmark) {
-  benchmark.template Run<HybridPGMLIPP<uint64_t>>();
+  if (util::get_file_type(data_file) == util::FileType::UINT64) {
+    BenchmarkHybridPGMLIPP<uint64_t> benchmark(data_file, ops_file, bulk_file);
+    benchmark.Run();
+  } else {
+    std::cerr << "Unsupported key type" << std::endl;
+    return 1;
+  }
+  return 0;
 }
-
-} // namespace tli 
