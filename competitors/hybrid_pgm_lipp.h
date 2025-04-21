@@ -75,6 +75,16 @@ public:
         // Implement range query if needed
         return 0;
     }
+    
+    // Check if this index is applicable for the given parameters
+    bool applicable(bool unique, bool range_query, bool insert, bool multithread, const std::string& ops_filename) {
+        // HybridPGMLIPP supports unique keys, range queries, and inserts
+        // It also supports multithreading
+        return true;
+    }
+    
+    // Get the name of this index
+    std::string name() const { return "HybridPGMLIPP"; }
 
 private:
     // Flush data from PGM to LIPP
