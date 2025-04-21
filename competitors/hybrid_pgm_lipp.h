@@ -38,10 +38,10 @@ private:
 
 public:
     // Default constructor
-    HybridPGMLIPP() = default;
+    HybridPGMLIPP() : lipp_index_(std::vector<int>{}) {}
     
     // Constructor that takes parameters (required by the benchmark framework)
-    HybridPGMLIPP(const std::vector<int>& params) {
+    HybridPGMLIPP(const std::vector<int>& params) : lipp_index_(params) {
         // We don't need to use the params for now
     }
     
