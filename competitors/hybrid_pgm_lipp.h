@@ -5,6 +5,7 @@
 #include "PGM-index/include/pgm_index_dynamic.hpp"
 #include "lipp.h"
 #include "../searches/linear_search.h"
+#include "base.h"
 
 namespace tli {
 
@@ -19,7 +20,7 @@ struct LinearSearch {
 };
 
 template <typename KeyType>
-class HybridPGMLIPP {
+class HybridPGMLIPP : public Base<KeyType> {
 private:
     // The Dynamic PGM index for handling insertions
     DynamicPGMIndex<KeyType, uint64_t, LinearSearch<KeyType>> pgm_index_;
