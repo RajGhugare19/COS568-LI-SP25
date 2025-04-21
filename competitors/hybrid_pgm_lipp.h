@@ -4,8 +4,19 @@
 #include <cstdint>
 #include "PGM-index/include/pgm_index_dynamic.hpp"
 #include "lipp.h"
+#include "../searches/linear_search.h"
 
 namespace tli {
+
+// Adapter for PGM-index to use the project's LinearSearch class
+template<typename K>
+struct LinearSearch {
+    template<typename Iterator>
+    static Iterator upper_bound(Iterator first, Iterator last, const K& key, Iterator hint, std::function<K(Iterator)> get_key) {
+        // Use the project's LinearSearch class
+        return tli::LinearSearch<0>::upper_bound(first, last, key, hint, get_key);
+    }
+};
 
 template <typename KeyType>
 class HybridPGMLIPP {
