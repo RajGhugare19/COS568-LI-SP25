@@ -52,7 +52,7 @@ public:
         
         // Insert all keys into LIPP
         for (const auto& kv : data) {
-            lipp_index_.Insert(kv);
+            lipp_index_.Insert(kv, 0); // Use thread ID 0 for all insertions during build
         }
         
         // Update the total key count
@@ -125,7 +125,7 @@ private:
         
         // Insert into LIPP
         for (const auto& kv : keys_to_flush) {
-            lipp_index_.Insert(kv);
+            lipp_index_.Insert(kv, 0); // Use thread ID 0 for all insertions during flush
         }
         
         // Clear PGM
