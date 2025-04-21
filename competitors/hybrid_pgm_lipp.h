@@ -13,12 +13,8 @@ template<typename K>
 struct LinearSearch {
     template<typename Iterator>
     static Iterator upper_bound(Iterator first, Iterator last, const K& key, Iterator hint, std::function<K(Iterator)> get_key) {
-        // Simple linear search implementation
-        Iterator it = first;
-        while (it != last && get_key(it) <= key) {
-            ++it;
-        }
-        return it;
+        // Use the project's LinearSearch class
+        return ::LinearSearch<0>::upper_bound(first, last, key, hint, get_key);
     }
 };
 
