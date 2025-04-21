@@ -11,7 +11,7 @@ template <typename KeyType>
 class HybridPGMLIPP {
 private:
     // The Dynamic PGM index for handling insertions
-    DynamicPGMIndex<KeyType, uint64_t> pgm_index_;
+    DynamicPGMIndex<KeyType, uint64_t, LinearSearch<KeyType>> pgm_index_;
     
     // The LIPP index for handling lookups
     LIPP<KeyType> lipp_index_;
@@ -85,7 +85,7 @@ private:
         }
         
         // Clear PGM
-        pgm_index_ = DynamicPGMIndex<KeyType, uint64_t>();
+        pgm_index_ = DynamicPGMIndex<KeyType, uint64_t, LinearSearch<KeyType>>();
         pgm_key_count_ = 0;
     }
 };
